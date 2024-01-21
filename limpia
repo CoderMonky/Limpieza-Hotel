@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Limpieza de Hotel</title>
+  <!-- Agrega la biblioteca de Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.4.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.4.0/firebase-firestore.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin-top: 100px;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .pisos-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      gap: 20px;
+    }
+
+    .piso-section {
+      border: 2px solid #4eb5f1;
+      border-radius: 5px;
+      padding: 10px;
+      width: 200px;
+      margin-bottom: 20px;
+      text-align: center;
+      background-color: #f0f0f0;
+    }
+
+    .piso-section h2 {
+      background-color: #4eb5f1;
+      color: white;
+      border-radius: 5px;
+      padding: 5px;
+      margin: 0;
+    }
+
+    .room {
+      margin-bottom: 10px;
+      padding: 10px;
+      cursor: pointer;
+      text-align: center;
+      border-radius: 5px;
+      margin: 5px;
+      border: 2px solid #000000;
+    }
+
+    .room-number {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .room-label {
+      font-size: 14px;
+    }
+
+    .estado-limpia {
+      background-color: #aee5f7;
+    }
+
+    .estado-checkout {
+      background-color: #ffadad;
+    }
+
+    .estado-latecheckout {
+      background-color: #b0e57c;
+    }
+
+    .estado-servicios {
+      background-color: #fff176;
+    }
+
+    .estado-para-chequear {
+      background-color: #a394e0;
+    }
+
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 20px;
+      background-color: white;
+      border: 1px solid #ccc;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+    }
+
+    .modal h3 {
+      margin-bottom: 10px;
+    }
+
+    .modal label {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .modal input {
+      margin-right: 5px;
+    }
+
+    .dialog-buttons {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    .dialog-buttons button {
+      padding: 5px;
+      cursor: pointer;
+      border: none;
+      border-radius: 3px;
+      background-color: #4eb5f1;
+      color: white;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Limpieza del Hotel</h1>
+
+  <div class="pisos-container">
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        // Configuración de Firebase (reemplaza con tus propias credenciales)
+        const firebaseConfig = {
+          apiKey: "TU_API_KEY",
+          authDomain: "TU_AUTH_DOMAIN",
+          projectId: "TU_PROJECT_ID",
+          storageBucket: "TU_STORAGE_BUCKET",
+          messagingSenderId: "TU_MESSAGING_SENDER_ID",
+          appId: "TU_APP_ID"
+        };
+
+        // Inicializa Firebase
+        firebase.initializeApp(firebaseConfig);
+
+        // Obtén una referencia a la base de datos Firestore
+        const db = firebase.firestore();
+
+        const pisosContainer = document.querySelector(".pisos-container");
+        const overlay = document.querySelector(".overlay");
+        const modal = document.querySelector(".modal");
+
+        const numPisos = 4;
+        const numHabitacionesPorPiso = [8, 10, 10, 10];
+
+        for (let i = 1; i <= numPisos; i++) {
+          const pisoSection = document.createElement("div");
+          pisoSection.classList.add("piso-section");
+
+          const pisoTitle = document.createElement("h2");
+          pisoTitle.innerText = "Piso " + i;
+          pisoSection.appendChild(pisoTitle);
+
+          for (let j = 1; j <= numHabitacionesPorPiso[i - 1]; j++) {
+            const roomDiv = document.createElement("div");
+            roomDiv.classList.add("room");
+            roomDiv.setAttribute("data-habitacion-id", i * 100 + j);
+
+            const roomNumber = document.createElement("div");
+            roomNumber.classList.add("room-number");
+            roomNumber.innerText = `H${i * 100 + j}`;
+            roomDiv.appendChild(roomNumber);
+
+            const roomLabel = document.createElement("div");
+            roomLabel.classList.add("room-label");
+            roomDiv.appendChild(roomLabel);
+
+            roomDiv.addEventListener("click", function () {
+              mostrarDialogoConfiguracion(i * 100 + j);
+            });
+
+            pisoSection.appendChild(roomDiv);
+          }
+
+          pisosContainer.appendChild(pisoSection);
+        }
+
+        function mostrarDialogoConfiguracion(numeroDeHabitacion) {
+          const roomDiv = document.querySelector(`[data-habitacion-id="${numeroDeHabitacion}"]`);
+
+          const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+          checkboxes.forEach((checkbox) => (checkbox.checked = false));
+
+          overlay.style.display = "block";
+          modal.style.display = "block";
+
+          const aceptarButton = document.querySelector(".aceptar-button");
+          aceptarButton.onclick = function () {
+            const estadoSeleccionado = document.querySelector('input[name="estado"]:checked').value;
+            const mucamaSeleccionada = document.querySelector('input[name="mucama"]:checked').value;
+            const formatoSeleccionado = document.querySelector('input[name="formato"]:checked').value;
+
+            agregarDescripcionHabitacion(roomDiv, estadoSeleccionado, mucamaSeleccionada, formatoSeleccionado);
+
+            overlay.style.display = "none";
+            modal.style.display = "none";
+          };
+        }
+
+        function agregarDescripcionHabitacion(roomDiv, estado, mucama, formato) {
+          const labelDiv = roomDiv.querySelector(".room-label");
+          roomDiv.classList.remove("estado-limpia", "estado-checkout", "estado-latecheckout", "estado-servicios", "estado-para-chequear");
+
+          // Guarda los datos en Firebase
+          const habitacionId = roomDiv.getAttribute("data-habitacion-id");
+          db.collection("habitaciones").doc(habitacionId).set({
+            mucama: mucama,
+            formato: formato,
+            estado: estado
+          });
+
+          switch (estado) {
+            case "Limpia":
+              roomDiv.classList.add("estado-limpia");
+              break;
+            case "Check Out":
+              roomDiv.classList.add("estado-checkout");
+              break;
+            case "Late Check Out":
+              roomDiv.classList.add("estado-latecheckout");
+              break;
+            case "Servicios":
+              roomDiv.classList.add("estado-servicios");
+              break;
+            case "Para Chequear":
+              roomDiv.classList.add("estado-para-chequear");
+              break;
+            default:
+              roomDiv.classList.add("estado-limpia");
+          }
+
+          labelDiv.innerHTML = `<p><strong>Mucama:</strong> ${mucama}</p>`;
+          labelDiv.innerHTML += `<p><strong>Formato:</strong> ${formato}</p>`;
+          labelDiv.innerHTML += `<p><strong>Estado:</strong> ${estado}</p>`;
+        }
+
+        function escucharCambiosEnFirebase() {
+          db.collection("habitaciones").onSnapshot((snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+              const habitacionId = change.doc.id;
+              const habitacionData = change.doc.data();
+              const roomDiv = document.querySelector(`[data-habitacion-id="${habitacionId}"]`);
+
+              if (roomDiv) {
+                agregarDescripcionHabitacion(roomDiv, habitacionData.estado, habitacionData.mucama, habitacionData.formato);
+              }
+            });
+          });
+        }
+
+        escucharCambiosEnFirebase();
+      });
+    </script>
+
+    <div class="overlay"></div>
+    <div class="modal">
+      <h3>Configuración de Habitación</h3>
+      <label>Estado:</label>
+      <div>
+        <input type="checkbox" name="estado" value="Limpia"> Limpia
+        <input type="checkbox" name="estado" value="Check Out"> Check Out
+        <input type="checkbox" name="estado" value="Late Check Out"> Late Check Out
+        <input type="checkbox" name="estado" value="Servicios"> Servicios
+        <input type="checkbox" name="estado" value="Para Chequear"> Para Chequear
+      </div>
+      <label>Mucama:</label>
+      <div>
+        <input type="checkbox" name="mucama" value="YESI"> YESI
+        <input type="checkbox" name="mucama" value="VERO"> VERO
+        <input type="checkbox" name="mucama" value="NORA"> NORA
+        <input type="checkbox" name="mucama" value="LUCIANA"> LUCIANA
+        <input type="checkbox" name="mucama" value="SANDRA"> SANDRA
+      </div>
+      <label>Formato:</label>
+      <div>
+        <input type="checkbox" name="formato" value="MAT"> MAT
+        <input type="checkbox" name="formato" value="TWIN"> TWIN
+        <input type="checkbox" name="formato" value="TRIPLE TWIN"> TRIPLE TWIN
+        <input type="checkbox" name="formato" value="MAT+CUNA"> MAT+CUNA
+        <input type="checkbox" name="formato" value="MAT+1"> MAT+1
+        <input type="checkbox" name="formato" value="MAT+2"> MAT+2
+      </div>
+      <div class="dialog-buttons">
+        <button class="aceptar-button">Aceptar</button>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>
